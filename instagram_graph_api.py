@@ -1,87 +1,69 @@
-import os
+from time import sleep
 import requests
+import textwrap
 from dotenv import load_dotenv
 load_dotenv()
 
 API_BASE_URL = 'https://graph.facebook.com/v11.0'      # APIのバージョンを指定
-BUSINESS_ACCOUNT_ID = os.getenv('BUSINESS_ACCOUNT_ID') # ビジネスアカウントID
-ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')               # アクセストークン
 
 class InstagramGraphApi:
     def __init__(self):
         self.api_base_url = API_BASE_URL
-        self.business_account_id = BUSINESS_ACCOUNT_ID
-        self.access_token = ACCESS_TOKEN
     
     # ユーザーを取得
-    def get_user(self, username, fields):
-        return requests.get('{api_base_url}/{business_account_id}?fields=business_discovery.username({username}){{{fields}}}&access_token={access_token}'
-                   .format(
-                       api_base_url = self.api_base_url,
-                       business_account_id = self.business_account_id,
-                       username = username,
-                       fields = fields,
-                       access_token = self.access_token
-                   )).json()['business_discovery']
+    def fetch_user(self, username, business_account_id, access_token, data_fields):
+        url = f'{self.api_base_url}/{business_account_id}'
+        fields = f'business_discovery.username({username}){{{data_fields}}}'
+        params = { 'fields': fields, 'access_token': access_token}
+
+        return requests.get(url, params = params).json()['business_discovery']
 
     # メディアを取得
-    def get_media(self, username, fields):
-        ret_data = []
+    def fetch_media(self, username, business_account_id, access_token, data_fields):
+        url = f'{self.api_base_url}/{business_account_id}'
+        fields = f'business_discovery.username({username}){{media{{{data_fields}}}}}'
+        params = { 'fields': fields, 'access_token': access_token}
         
-        res = requests.get('{api_base_url}/{business_account_id}?fields=business_discovery.username({username}){{media{{{fields}}}}}&access_token={access_token}'
-                  .format(
-                      api_base_url = self.api_base_url,
-                      business_account_id = self.business_account_id,
-                      username = username,
-                      fields = fields,
-                      access_token = self.access_token
-                  )).json()['business_discovery']
+        res = requests.get(url, params = params).json()['business_discovery']
+        
+        media = []
         
         for i in range(len(res['media']['data'])):
-            ret_data.append(res['media']['data'][i])
+            media.append(res['media']['data'][i])
 
         # Instagram Graph APIの仕様上、一度のリクエストで取得できるのは25件までなので、それ以上取得したい場合は複数回リクエストを送る        
         if 'after' in res['media']['paging']['cursors'].keys():
             after = res['media']['paging']['cursors']['after']
             
             while after is not None:
-                res = requests.get('{api_base_url}/{business_account_id}?fields=business_discovery.username({username}){{media.after({after}){{{fields}}}}}&access_token={access_token}'
-                          .format(
-                              api_base_url = self.api_base_url,
-                              business_account_id = self.business_account_id,
-                              username = username,
-                              after = after,
-                              fields = fields,
-                              access_token = self.access_token
-                          )).json()['business_discovery']
+                url = f'{self.api_base_url}/{self.business_account_id}'
+                fields = f'business_discovery.username({username}){{media.after({after}){{{data_fields}}}}}'
+                params = { 'fields': fields, 'access_token': self.access_token}
+                
+                res = requests.get(url, params = params).json()['business_discovery']
 
                 for i in range(len(res['media']['data'])):
-                    ret_data.append(res['media']['data'][i])
+                    media.append(res['media']['data'][i])
                 
                 if 'after' in res['media']['paging']['cursors'].keys():
                     after = res['media']['paging']['cursors']['after']
                 else:
                     after = None
+                
+                sleep(0.5) # API制限にかからないよう適度に時間を空ける
 
-        return ret_data
+        return media
     
     # インサイト（ユーザー）を取得
-    def get_user_insight(self, metric, period):
-        return requests.get('{api_base_url}/{business_account_id}/insights?metric={metric}&period={period}&access_token={access_token}'
-		           .format(
-					   api_base_url = self.api_base_url,
-					   business_account_id = self.business_account_id,
-					   metric = metric,
-                       period = period,
-					   access_token = self.access_token
-		           )).json()['data']
+    def fetch_user_insight(self, business_account_id, access_token, metric, period):
+        url = f'{self.api_base_url}/{business_account_id}/insights'
+        params = { 'metric': metric, 'period': period, 'access_token': access_token}
+
+        return requests.get(url, params = params).json()['data']
     
     # インサイト（メディア）を取得
-    def get_media_insight(self, media_id, metric):
-        return requests.get('{api_base_url}/{media_id}/insights?metric={metric}&access_token={access_token}'
-		           .format(
-					   api_base_url = self.api_base_url,
-					   media_id = media_id,
-					   metric = metric,
-					   access_token = self.access_token
-				   )).json()['data']
+    def fetch_media_insight(self, media_id, access_token, metric):
+        url = f'{self.api_base_url}/{media_id}/insights'
+        params = { 'metric': metric, 'access_token': access_token}
+        
+        return requests.get(url, params = params).json()['data']
