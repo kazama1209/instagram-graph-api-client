@@ -1,8 +1,6 @@
 from time import sleep
 import requests
 import textwrap
-from dotenv import load_dotenv
-load_dotenv()
 
 API_BASE_URL = 'https://graph.facebook.com/v11.0'      # APIのバージョンを指定
 
