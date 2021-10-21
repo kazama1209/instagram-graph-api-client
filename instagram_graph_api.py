@@ -2,7 +2,7 @@ from time import sleep
 import requests
 import textwrap
 
-API_BASE_URL = 'https://graph.facebook.com/v11.0'      # APIのバージョンを指定
+API_BASE_URL = 'https://graph.facebook.com/v11.0' # APIのバージョンを指定
 
 class InstagramGraphApi:
     def __init__(self):
